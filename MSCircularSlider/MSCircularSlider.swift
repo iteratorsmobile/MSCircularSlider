@@ -663,6 +663,8 @@ public class MSCircularSlider: UIControl {
     internal func drawUnfilledCircle(ctx: CGContext, center: CGPoint, radius: CGFloat, lineWidth: CGFloat, maximumAngle: CGFloat, lineCap: CGLineCap) {
         
         drawArc(ctx: ctx, center: center, radius: radius, lineWidth: lineWidth, fromAngle: 0, toAngle: maximumAngle, lineCap: lineCap)
+        
+        drawArcWithGradient(ctx: ctx, center: center, radius: radius, lineWidth: lineWidth, fromAngle: 0, toAngle: maximumAngle, lineCap: lineCap)
     }
     
     /** Draws an arc in context */
@@ -675,6 +677,48 @@ public class MSCircularSlider: UIControl {
         ctx.setLineWidth(lineWidth)
         ctx.setLineCap(lineCap)
         ctx.drawPath(using: CGPathDrawingMode.stroke)
+    }
+    
+    /** Draws an arc with gradient in context */
+    internal func drawArcWithGradient(ctx: CGContext, center: CGPoint, radius: CGFloat, lineWidth: CGFloat, fromAngle: CGFloat, toAngle: CGFloat, lineCap: CGLineCap) {
+        let gradientColors = [
+            UIColor(red: 70.0/255.0, green: 230.0/255.0, blue: 134.0/255.0, alpha: 1.0),
+            UIColor(red: 111.0/255.0, green: 235.0/255.0, blue: 243.0/255.0, alpha: 1.0),
+            UIColor(red: 97.0/255.0, green: 146.0/255.0, blue: 236.0/255.0, alpha: 1.0),
+            UIColor(red: 142.0/255.0, green: 106.0/255.0, blue: 240.0/255.0, alpha: 1.0),
+            UIColor(red: 208.0/255.0, green: 72.0/255.0, blue: 215.0/255.0, alpha: 1.0)
+        ]
+        let numberOfGradientColor = gradientColors.count
+        
+        let colorLocations: [CGFloat] = [0, 1]
+        
+        gradientColors.enumerated().forEach { index, color in
+            let cartesianFromAngle = toCartesian(toRad((Double(index == 0 ? numberOfGradientColor : index) / Double(numberOfGradientColor)) * Double(maximumAngle)))
+            let cartesianToAngle = toCartesian(toRad((Double(index + 1) / Double(numberOfGradientColor)) * Double(maximumAngle)))
+            
+            ctx.addArc(center: center, radius: radius, startAngle: CGFloat(cartesianFromAngle), endAngle: CGFloat(cartesianToAngle), clockwise: false)
+            ctx.replacePathWithStrokedPath()
+            ctx.saveGState()
+            ctx.clip()
+            
+            var colorComponents: [CGColor] = []
+            colorComponents.append(color.cgColor)
+            
+            let nextColorIndex = index + 1 == numberOfGradientColor ? 0 : index + 1
+            colorComponents.append(gradientColors[nextColorIndex].cgColor)
+            
+            assert(colorComponents.count == 2, "must have 2 values")
+            
+            let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colorComponents as CFArray, locations: colorLocations)!
+            
+            let gradientStartPointAngle = (CGFloat(index) / CGFloat(numberOfGradientColor)) * CGFloat(maximumAngle)
+            let gradientEndPointAngle = (CGFloat(index + 1) / CGFloat(numberOfGradientColor)) * CGFloat(maximumAngle)
+            let gradientStartPoint = pointOnCircleAt(angle: gradientStartPointAngle)
+            let gradientEndPoint = pointOnCircleAt(angle: gradientEndPointAngle)
+            
+            ctx.drawLinearGradient(gradient, start: gradientStartPoint, end: gradientEndPoint, options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
+            ctx.restoreGState()
+        }
     }
     
     //================================================================================
